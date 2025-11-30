@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: tourtoise_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tourtoise_db
+      POSTGRES_USER: shahtaz
+      POSTGRES_PASSWORD: test1234
+      POSTGRES_MULTIPLE_DATABASES: tourtoise_db, adk_sessions
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - tourtoise-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shahtaz -d tourtoise_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    container_name: tourtoise_app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"
+    networks:
+      - tourtoise-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis:
+    image: redis:7
+    container_name: tourtoise_redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    networks:
+      - tourtoise-network
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tourtoise_celery
+    command: celery -A app.core.celery.celery_app worker --loglevel=info --concurrency=4
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - app
+    networks:
+      - tourtoise-network
+
+volumes:
+  postgres_data:
+
+networks:
+  tourtoise-network:
+    driver: bridge

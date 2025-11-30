@@ -1,0 +1,16 @@
+alembic==1.16.1
+asyncpg==0.30.0
+celery[redis]==5.5.3
+fastapi[standard]
+joblib==1.5.2
+google-adk
+google-genai==1.36.0
+pandas==2.3.0
+passlib==1.7.4
+pillow==11.3.0
+psycopg2-binary==2.9.10
+pydantic-settings==2.9.1
+PyJWT==2.10.1
+sqlalchemy==2.0.41
+redis==5.2.1
+uvicorn[standard]
