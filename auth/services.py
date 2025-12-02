@@ -1,3 +1,4 @@
+from uuid import UUID
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,7 +7,7 @@ from auth.db.crud import UserRepository
 from auth.helpers.password import verify_password, hash_password
 from auth.helpers.jwt import create_tokens, decode_jwt
 
-from auth.schema import UserResponseSchema
+from auth.schema import UserPrivateResponseSchema
 
 
 class AuthService:
@@ -18,8 +19,11 @@ class AuthService:
         
         user = await UserRepository.get_user(self.db, user_email=credentials["email"])
 
-        if not user or not verify_password(credentials["password"], user.hashed_password):
-            raise ValueError("Invalid email or password")
+        if not user:
+            raise ValueError("This email is not registered!")
+
+        if not verify_password(credentials["password"], user.hashed_password):
+            raise ValueError("Your password is incorrect!")
 
         return create_tokens(str(user.user_id))
 
@@ -30,7 +34,7 @@ class AuthService:
         user = await UserRepository.get_user(self.db, user_email=user_info["email"])
 
         if user:
-            raise ValueError("User already exists")
+            raise ValueError("User with this email address already exists!")
 
         password = user_info.pop("password")
         user_info["hashed_password"] = hash_password(password)
@@ -59,10 +63,25 @@ class AuthService:
         return create_tokens(str(user_id))
 
 
-    async def get_user(self, user_id: str) -> UserResponseSchema:
+    async def get_user(self, user_id: str) -> UserPrivateResponseSchema:
         """Get user information by user ID"""
         user = await UserRepository.get_user_by_id(self.db, user_id=user_id)
+        
         if not user:
             raise ValueError("User not found")
-        user_schema = UserResponseSchema.from_orm(user)
+        
+        user_schema = UserPrivateResponseSchema.model_validate(user)
+        
+        return user_schema
+
+
+    async def update_user(self, user_id: UUID, updates: dict) -> UserPrivateResponseSchema:
+        """Update user information"""
+        user = await UserRepository.update_user(self.db, user_id=user_id, updates=updates)
+
+        if not user:
+            raise ValueError("User not found or update failed")
+
+        user_schema = UserPrivateResponseSchema.model_validate(user)
+
         return user_schema

@@ -1,3 +1,4 @@
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -30,3 +31,23 @@ class UserRepository:
         await db.refresh(new_user)
         return new_user
     
+    @staticmethod
+    async def update_user(db: AsyncSession, user_id: UUID, updates: dict) -> UserSchema | None:
+        """Update user information with user_id"""
+        stmt = select(User).where(User.user_id == user_id)
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if not user:
+            return None
+
+        for key, value in updates.items():
+            if hasattr(user, key):
+                setattr(user, key, value)
+            else:
+                print(f"Warning: Trying to set non-existent field: {key}")
+
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return user

@@ -2,7 +2,7 @@
 
 set -e
 
-echo "=== Starting local development environment ==="
+echo "Starting local development environment"
 
 # 1. Create network only if needed
 NETWORK_NAME="tourtoise-network"
@@ -20,7 +20,4 @@ docker compose -f docker-compose.yml down --remove-orphans
 
 # 3. Start the stack in background (recommended for dev)
 echo "Starting docker services..."
-docker compose -f docker-compose.yml up -d --build
-
-echo "=== Docker environment is up and running! ==="
-echo "Use 'docker compose logs -f' to see logs."
+docker compose -f docker-compose.yml up --build --remove-orphans
