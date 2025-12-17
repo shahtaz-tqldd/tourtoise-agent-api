@@ -1,24 +1,34 @@
 from uuid import UUID
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Body, Cookie, Query
+from app.utils.print_log import print_log
+from fastapi import APIRouter, Depends, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.base.schema import (
     BaseResponse, 
     DataResponse, 
     ListResponse
 )
-from app.utils.print_log import print_log
-from destination.services import DestinationService
+from destination.services import (
+    DestinationService, 
+    TransportTypeService, 
+    AccommodationTypeService,
+    ActivityTypeService,
+)
 
 from destination.schema import (
     DestinationCreateRequest,
-    AccommodationTypeRequest
+    AccommodationTypeRequest,
+    TransportTypeRequest,
+    ActivityTypeRequest,
 )
 
 from app.db.session import get_async_session
 from auth.helpers.dependencies import get_current_user
 
 router = APIRouter()
+
+# destination routes
 
 async def get_destination_service(
     db: AsyncSession = Depends(get_async_session),
@@ -34,23 +44,19 @@ async def list_destinations(
     service: DestinationService = Depends(get_destination_service),
     user_id: UUID = Depends(get_current_user)
 ):
-    try:
-        destination_list, total_count = await service.get_all_destinations(
-            page,
-            page_size,
-            search_query,
-        )
-        return ListResponse(
-            success=True,
-            data=destination_list,
-            page=page,
-            page_size=page_size,
-            total=total_count,
-            message="Destination list fetched successfully.",
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    destination_list, total_count = await service.get_all_destinations(
+        page,
+        page_size,
+        search_query,
+    )
+    return ListResponse(
+        success=True,
+        data=destination_list,
+        page=page,
+        page_size=page_size,
+        total=total_count,
+        message="Destination list fetched successfully.",
+    )
 
 
 @router.post("/create", response_model=DataResponse)
@@ -59,20 +65,18 @@ async def create_new_destination(
     service = Depends(get_destination_service),
     # user_id: UUID = Depends(get_current_user)
 ):
-    try:
-        destination_details = await service.create_destination(destination_payload.model_dump())
-        return DataResponse(
-            success=True,
-            data=destination_details,
-            message="A new destination created successfully!",
-        )
 
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    destination_details = await service.create_destination(destination_payload.model_dump())
+    
+    return DataResponse(
+        success=True,
+        data=destination_details,
+        message="A new destination created successfully!",
+    )
 
 
-# AccommodationTypeService
-from destination.services.accommodation import AccommodationTypeService
+
+# accommodations routes
 
 async def get_accommodation_type_service(
     db: AsyncSession = Depends(get_async_session),
@@ -84,29 +88,91 @@ async def create_accommodation_type(
     accommodation_payload: AccommodationTypeRequest = Body(...),
     service: AccommodationTypeService = Depends(get_accommodation_type_service),
 ):
-    try:
-        accommodation_type_details = await service.create_accommodation_type(accommodation_payload.model_dump)
-        return DataResponse(
-            success=True,
-            data=accommodation_type_details,
-            message="A new accommodation type created successfully!",
-        )
+    accommodation_type_details = await service.create_accommodation_type(accommodation_payload.model_dump())
+    return DataResponse(
+        success=True,
+        data=accommodation_type_details,
+        message="A new accommodation type created successfully!",
+    )
 
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
+
 @router.get("/accommodation-type/list", response_model=DataResponse)
 async def list_accommodation_types(
     service: AccommodationTypeService = Depends(get_accommodation_type_service),
 ):
-    try:
-        accommodation_type_list = await service.accommodation_type_list()
+    accommodation_type_list = await service.accommodation_type_list()
 
-        return DataResponse(
-            success=True,
-            data=accommodation_type_list,
-            message="Accommodation type list fetched successfully.",
-        )
+    return DataResponse(
+        success=True,
+        data=accommodation_type_list,
+        message="Accommodation type list fetched successfully.",
+    )
 
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+
+
+# transportation routes
+
+async def get_transport_type_service(
+    db: AsyncSession = Depends(get_async_session),
+) -> TransportTypeService:
+    return TransportTypeService(db)
+
+@router.post("/transport-type/create", response_model=DataResponse)
+async def create_transport_type(
+    transport_payload: TransportTypeRequest = Body(...),
+    service: TransportTypeService = Depends(get_transport_type_service),
+):
+    transport_type_details = await service.create_transport_type(transport_payload.model_dump())
+    return DataResponse(
+        success=True,
+        data=transport_type_details,
+        message="A new transport type created successfully!",
+    )
+
+
+@router.get("/transport-type/list", response_model=DataResponse)
+async def list_transport_types(
+    service: TransportTypeService = Depends(get_transport_type_service),
+):
+    transport_type_list = await service.transport_type_list()
+
+    return DataResponse(
+        success=True,
+        data=transport_type_list,
+        message="Transport type list fetched successfully.",
+    )
+
+   
+# activity routes
+
+async def get_activity_type_service(
+    db: AsyncSession = Depends(get_async_session),
+) -> ActivityTypeService:
+    return ActivityTypeService(db)
+
+@router.post("/activity-type/create", response_model=DataResponse)
+async def create_activity_type(
+    activity_payload: ActivityTypeRequest = Body(...),
+    service: ActivityTypeService = Depends(get_activity_type_service),
+):
+    activity_type_details = await service.create_activity_type(activity_payload.model_dump())
+    return DataResponse(
+        success=True,
+        data=activity_type_details,
+        message="A new activity type created successfully!",
+    )
+
+
+@router.get("/activity-type/list", response_model=DataResponse)
+async def list_activity_types(
+    service: ActivityTypeService = Depends(get_activity_type_service),
+):
+    activity_type_list = await service.activity_type_list()
+
+    return DataResponse(
+        success=True,
+        data=activity_type_list,
+        message="Activity type list fetched successfully.",
+    )
+
+   

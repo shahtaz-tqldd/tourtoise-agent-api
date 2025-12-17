@@ -10,9 +10,32 @@ from typing import List, Optional, Any
 
 class AccommodationTypeRequest(BaseModel):
     name: str
-    description: Optional[str]
+    description: Optional[str] = None
 
 class AccommodationTypeDetails(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID
+    name: str
+    description: Optional[str]
+
+
+class TransportTypeRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class TransportTypeDetails(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID
+    name: str
+    description: Optional[str]
+
+class ActivityTypeRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class ActivityTypeDetails(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
     id: UUID
