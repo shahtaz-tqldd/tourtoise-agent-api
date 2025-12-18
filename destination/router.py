@@ -36,15 +36,15 @@ async def get_destination_service(
     return DestinationService(db)
 
 
-@router.get("", response_model=ListResponse)
+@router.get("/list", response_model=ListResponse)
 async def list_destinations(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     search_query: Optional[str] = Query(None),
     service: DestinationService = Depends(get_destination_service),
-    user_id: UUID = Depends(get_current_user)
+    # user_id: UUID = Depends(get_current_user)
 ):
-    destination_list, total_count = await service.get_all_destinations(
+    destination_list, total_count = await service.destination_list(
         page,
         page_size,
         search_query,
@@ -62,7 +62,7 @@ async def list_destinations(
 @router.post("/create", response_model=DataResponse)
 async def create_new_destination(
     destination_payload: DestinationCreateRequest = Body(...),
-    service = Depends(get_destination_service),
+    service: DestinationService = Depends(get_destination_service),
     # user_id: UUID = Depends(get_current_user)
 ):
 

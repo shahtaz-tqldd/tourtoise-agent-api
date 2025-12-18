@@ -202,7 +202,7 @@ class SignatureDish(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     destination_id = Column(UUID(as_uuid=True), ForeignKey("destinations.id", ondelete="CASCADE"), nullable=False, index=True)
     
-    name = Column(String(255), nullable=False, unique=True)
+    name = Column(String(255), nullable=False)
     tags = Column(ARRAY(String(50)))  # ['Seafood', 'Spicy', 'Local Specialty']
     dietary_info = Column(
         ARRAY(Enum(DietaryEnum, name="dietary_enum"))
