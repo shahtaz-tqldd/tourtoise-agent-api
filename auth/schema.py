@@ -124,3 +124,23 @@ class UserPrivateResponseSchema(BaseModel):
     created_at: datetime
     updated_at: datetime
     last_login_at: Optional[datetime] = None
+
+
+class UserBasicPrivateDetailsSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: UUID
+    first_name: str
+    last_name: Optional[str] = None
+    email: EmailStr
+    profile_image_url: Optional[str] = None
+
+    # Location sharing status
+    current_lat: Optional[float] = None
+    current_lng: Optional[float] = None
+    last_active_at: Optional[datetime] = None
+
+    
+    # Timestamps
+    created_at: datetime
+    last_login_at: Optional[datetime] = None

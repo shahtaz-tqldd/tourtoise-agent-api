@@ -1,7 +1,9 @@
+import asyncio
 from uuid import UUID
 from app.utils.print_log import print_log
 from destination.db.crud import DestinationCRUD, AccommodationCRUD, TransportCRUD, ActivityCRUD
 from typing import Optional
+from app.utils.cloudinary_manager import CloudinaryImageManager
 
 class DestinationService:
   def __init__(self, db):
@@ -10,7 +12,7 @@ class DestinationService:
     self.accommodation_crud = AccommodationCRUD(db)
     self.transport_crud = TransportCRUD(db)
     self.activity_crud = ActivityCRUD(db)
-
+    self.image_manager = CloudinaryImageManager()
 
   async def _validate_reference_ids(self, destination_data: dict):
     """
@@ -36,7 +38,32 @@ class DestinationService:
       exists = await self.activity_crud.get_activity_type_by_id(type_id)
       if not exists:
         raise ValueError(f"Activity type with ID {type_id} does not exist")
-            
+
+
+  async def _upload_images(self, images: list[dict]) -> list[dict]:
+      loop = asyncio.get_running_loop()
+
+      tasks = [
+          loop.run_in_executor(
+              None,
+              self.image_manager.upload,
+              img["file"].file,
+          )
+          for img in images
+      ]
+
+      results = await asyncio.gather(*tasks)
+
+      return [
+          {
+              "image_url": r["url"],
+              "public_id": r["public_id"],
+              "alt_text": images[i].get("alt_text"),
+          }
+          for i, r in enumerate(results)
+      ]
+
+
   async def create_destination(self, destination_data: dict):
     # 1. create destination in Database
     
@@ -44,7 +71,20 @@ class DestinationService:
       # Validate that referenced types exist
       await self._validate_reference_ids(destination_data)
       
+      if destination_data.get("images"):
+        uploaded_images = await self._upload_images(destination_data["images"])
+        destination_data["images"] = uploaded_images
       
+      attractions_data = destination_data.get("attractions", [])
+      for attr_data in attractions_data:
+          img_req = attr_data.get("image_file")
+          if img_req and img_req.file:
+              uploaded = await self._upload_images([img_req])
+              attr_data["image_url"] = uploaded[0]["image_url"]
+              # attr_data["public_id"] = uploaded[0]["public_id"]
+          
+          attr_data.pop("image_file", None)
+
       new_destination = await self.destination_crud.create_destination(destination_data)
       
       return new_destination

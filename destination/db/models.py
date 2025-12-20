@@ -28,9 +28,7 @@ class AttractionTag(str, enum.Enum):
     SHOPPING = "Shopping"
 
 
-# ====================================
 # Accommodations
-# ====================================
 class AccommodationTypeRef(Base):
     """Reference table for accommodation categories (reusable)"""
     __tablename__ = "accommodation_type_refs"
@@ -98,9 +96,7 @@ class Accommodation(Base):
     accommodation_type = relationship("DestinationAccommodationType")
 
 
-# ====================================
 # Transportations
-# ====================================
 class TransportTypeRef(Base):
     """Reference table for transport types (reusable)"""
     __tablename__ = "transport_type_refs"
@@ -135,13 +131,10 @@ class DestinationTransportOption(Base):
         "Destination",
         back_populates="transportation_options"
     )
-    # FIXED: Changed from transport_type_refs to transport_ref to match back_populates
     transport_ref = relationship("TransportTypeRef", back_populates="destination_transports")
 
 
-# ====================================
 # Activity
-# ====================================
 class ActivityTypeRef(Base):
     """Reference table for activity types (reusable)"""
     __tablename__ = "activity_type_refs"
@@ -153,7 +146,7 @@ class ActivityTypeRef(Base):
     
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     
-    # FIXED: Changed relationship name to match back_populates
+    # Relationships
     destination_activities = relationship("DestinationActivity", back_populates="activity_ref")
 
 
@@ -181,13 +174,11 @@ class DestinationActivity(Base):
         "Destination",
         back_populates="activities"
     )
-    # FIXED: Changed from activity_type_refs to activity_ref to match back_populates
     activity_ref = relationship("ActivityTypeRef", back_populates="destination_activities")
 
 
-# ====================================
+
 # Foods & Dining
-# ====================================
 class DietaryEnum(str, enum.Enum):
     VEG = "vegetarian"
     NON_VEGAN = "non-vegetarian"
@@ -218,7 +209,6 @@ class SignatureDish(Base):
     destination = relationship("Destination", back_populates="signature_dishes")
 
 
-# ADDED: Missing Restaurant model that was referenced in Destination
 class Restaurant(Base):
     """Restaurant entities (bound to destination)"""
     __tablename__ = "restaurants"
@@ -251,10 +241,75 @@ class Restaurant(Base):
     destination = relationship("Destination", back_populates="restaurants")
 
 
-# ======================
-# MAIN DESTINATION TABLE
-# ======================
+# Attractions
+class Attraction(Base):
+    """Tourist attractions (bound to destination)"""
+    __tablename__ = "attractions"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    destination_id = Column(UUID(as_uuid=True), ForeignKey("destinations.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    tag = Column(Enum(AttractionTag), index=True)
+    
+    entry_fee = Column(String(100))
+    opening_hours = Column(String(255))
+    best_time_to_visit = Column(String(255))
+    available_transports = Column(ARRAY(String(50)))
+    is_recommended = Column(Boolean, default=False, index=True)
+    
+    # Location
+    region = Column(String(255), nullable=False, index=True)
+    longitude = Column(DECIMAL(10, 7))
+    latitude = Column(DECIMAL(10, 7))
+    
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
+    destination = relationship("Destination", back_populates="attractions")
+    images = relationship(
+        "AttractionImage",
+        back_populates="attraction",
+        cascade="all, delete-orphan"
+    )
+
+
+# Destination Images
+class DestinationImage(Base):
+    __tablename__ = "destination_images"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    destination_id = Column(UUID(as_uuid=True), ForeignKey("destinations.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    image_url = Column(String(500), nullable=False)
+    alt_text = Column(String(255))
+    public_id = Column(String(255))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    # relationship
+    destination = relationship("Destination", back_populates="images")
+
+
+
+# Attraction Images
+class AttractionImage(Base):
+    __tablename__ = "attraction_images"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    attraction_id = Column(UUID(as_uuid=True), ForeignKey("attractions.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    image_url = Column(String(500), nullable=False)
+    alt_text = Column(String(255))
+    public_id = Column(String(255))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    # relationship
+    attraction = relationship("Attraction", back_populates="images")
+
+
+
+# Destination
 class Destination(Base):
     __tablename__ = "destinations"
 
@@ -343,49 +398,3 @@ class Destination(Base):
         back_populates="destination",
         cascade="all, delete-orphan"
     )
-
-
-# =============================
-# DESTINATION-SPECIFIC ENTITIES
-# =============================
-
-class DestinationImage(Base):
-    __tablename__ = "destination_images"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    destination_id = Column(UUID(as_uuid=True), ForeignKey("destinations.id", ondelete="CASCADE"), nullable=False, index=True)
-    
-    image_url = Column(String(500), nullable=False)
-    alt_text = Column(String(255))
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-
-    destination = relationship("Destination", back_populates="images")
-
-
-class Attraction(Base):
-    """Tourist attractions (bound to destination)"""
-    __tablename__ = "attractions"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    destination_id = Column(UUID(as_uuid=True), ForeignKey("destinations.id", ondelete="CASCADE"), nullable=False, index=True)
-    
-    name = Column(String(255), nullable=False)
-    description = Column(Text)
-    image_url = Column(String(500))
-    tag = Column(Enum(AttractionTag), index=True)
-    
-    entry_fee = Column(String(100))
-    opening_hours = Column(String(255))
-    best_time_to_visit = Column(String(255))
-    available_transports = Column(ARRAY(String(50)))
-    is_recommended = Column(Boolean, default=False, index=True)
-    
-    # Location
-    region = Column(String(255), nullable=False, index=True)
-    longitude = Column(DECIMAL(10, 7))
-    latitude = Column(DECIMAL(10, 7))
-    
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-
-    destination = relationship("Destination", back_populates="attractions")

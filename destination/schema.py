@@ -1,8 +1,9 @@
-from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional, Any
+from fastapi import UploadFile
 from pydantic import BaseModel, ConfigDict
+from typing import List, Optional, Any
+from uuid import UUID
 
 
 class AccommodationTypeRequest(BaseModel):
@@ -85,10 +86,15 @@ class AccommodationRequest(BaseModel):
     website: Optional[str]
 
 
+class ImageRequest(BaseModel):
+    file: UploadFile
+    alt_text: Optional[str] = None
+
+
 class AttractionRequest(BaseModel):
     name: str
     description: Optional[str]
-    image_file: Optional[Any]
+    image_file: ImageRequest
     tag: Optional[str]
     entry_fee: Optional[str]
     opening_hours: Optional[str]
@@ -98,12 +104,6 @@ class AttractionRequest(BaseModel):
     region: Optional[str]
     longitude: Optional[str]
     latitude: Optional[str]
-
-
-class ImageRequest(BaseModel):
-    file: Any
-    alt_text: Optional[str] = None
-
 
 class DestinationCreateRequest(BaseModel):
     """destination creation request schema"""

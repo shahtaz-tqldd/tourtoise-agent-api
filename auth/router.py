@@ -1,12 +1,12 @@
 from uuid import UUID
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Body, Cookie
+from fastapi import APIRouter, Depends, Body, Cookie, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.base.schema import DataResponse
+from app.base.schema import DataResponse, ListResponse
 
 from auth.helpers.dependencies import get_current_user
 
-from auth.services import AuthService
+from auth.services import AuthService, AdminUserService
 from auth.schema import (
     LoginRequest, 
     RegisterRequest,
@@ -18,92 +18,108 @@ from app.db.session import get_async_session
 
 router = APIRouter()
 
-@router.post("/login", response_model=DataResponse)
-async def login(payload: LoginRequest, db: AsyncSession = Depends(get_async_session)):
-    auth_service = AuthService(db)
-    try:
-        auth = await auth_service.login(payload.dict())
+def get_auth_service(
+    db: AsyncSession = Depends(get_async_session),
+) -> AuthService:
+    return AuthService(db)
 
-        return DataResponse(
-            success=True,
-            message="Login successful",
-            data=auth
-        )
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
+@router.post("/login", response_model=DataResponse)
+async def login(
+    payload: LoginRequest, 
+    service: AuthService = Depends(get_auth_service)
+):
+    auth = await service.login(payload.model_dump())
+    return DataResponse(
+        success=True,
+        message="Login successful",
+        data=auth
+    )
+
 
 
 @router.post("/register", response_model=DataResponse)
-async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_async_session)):
-    try:
-        auth_service = AuthService(db)
-        auth = await auth_service.register(payload.dict())
-        return DataResponse(
-            success=True,
-            message="Registration successful",
-            data=auth
-        )
-    
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+async def register(
+    payload: RegisterRequest, 
+    service: AuthService = Depends(get_auth_service)
+):    
+    auth = await service.register(payload.model_dump())
+    return DataResponse(
+        success=True,
+        message="Registration successful",
+        data=auth
+    )
+
 
 
 @router.post("/refresh", response_model=DataResponse)
 async def refresh(
     payload: RefreshRequest = Body(...),
     refresh_token_cookie: Optional[str] = Cookie(None, alias="refresh_token"),
-    db: AsyncSession = Depends(get_async_session)
+    service: AuthService = Depends(get_auth_service)
 ):
-    try:
-        auth_service = AuthService(db)
-        new_token = await auth_service.refresh(payload.dict(), refresh_token_cookie)
-        return DataResponse(
-            success=True,
-            message="Token refreshed successfully",
-            data=new_token
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    new_token = await service.refresh(payload.model_dump(), refresh_token_cookie)
+    return DataResponse(
+        success=True,
+        message="Token refreshed successfully",
+        data=new_token
+    )
 
 
 @router.get("/profile", response_model=DataResponse)
 async def get_user(
-    db: AsyncSession = Depends(get_async_session),
+    service: AuthService = Depends(get_auth_service),
     user_id: UUID = Depends(get_current_user)
 ):
-    try:
-    
-        auth_service = AuthService(db)
-        user = await auth_service.get_user(user_id)
-        return DataResponse(
-            success=True,
-            message="User fetched successfully",
-            data=user
-        )
 
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    user = await service.get_user(user_id)
+    return DataResponse(
+        success=True,
+        message="User fetched successfully",
+        data=user
+    )
 
 @router.patch("/update-user")
 async def update_user(
-    db: AsyncSession = Depends(get_async_session),
-    user_id: UUID = Depends(get_current_user),
     payload: UserUpdateRequest = Body(...),
+    service: AuthService = Depends(get_auth_service),
+    user_id: UUID = Depends(get_current_user),
 ):
-    try:
-        auth_service = AuthService(db)
-        user = await auth_service.update_user(
-            user_id = user_id, 
-            updates = payload.model_dump(exclude_unset=True)
-        )
+    user = await service.update_user(
+        user_id = user_id, 
+        updates = payload.model_dump(exclude_unset=True)
+    )
 
-        return DataResponse(
-            success=True,
-            message="User updated successfully!",
-            data=user
-        )
+    return DataResponse(
+        success=True,
+        message="User updated successfully!",
+        data=user
+    )
 
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
+# admin services
+def get_admin_user_service(
+    db: AsyncSession = Depends(get_async_session),
+) -> AdminUserService:
+    return AdminUserService(db)
+
+@router.get("/list", response_model=ListResponse)
+async def get_user_list(
+    page: int = Query(..., ge=1),
+    page_size: int = Query(..., ge=1, le=1000),
+    search_str: Optional[str] = None,
+    service: AdminUserService = Depends(get_admin_user_service),
+    # user_id: UUID = Depends(get_current_user)
+):
+    user_list, total_items = await service.user_list(
+        page=page, 
+        page_size=page_size, 
+        search_str=search_str
+    )
+    return ListResponse(
+        success=True,
+        message="User list fetched successfully",
+        data=user_list,
+        page=page,
+        page_size=page_size,
+        total=total_items
+    )
+

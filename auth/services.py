@@ -1,5 +1,5 @@
 from uuid import UUID
-from typing import Optional
+from typing import Optional, List
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,17 +7,21 @@ from auth.db.crud import UserRepository
 from auth.helpers.password import verify_password, hash_password
 from auth.helpers.jwt import create_tokens, decode_jwt
 
-from auth.schema import UserPrivateResponseSchema
+from auth.schema import (
+    UserPrivateResponseSchema
+)
 
 
 class AuthService:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.user_repo = UserRepository(db) 
+        
 
     async def login(self, credentials: dict) -> dict:
         """Authenticate user and return their tokens"""
         
-        user = await UserRepository.get_user(self.db, user_email=credentials["email"])
+        user = await self.user_repo.get_user(user_email=credentials["email"])
 
         if not user:
             raise ValueError("This email is not registered!")
@@ -31,14 +35,14 @@ class AuthService:
     async def register(self, user_info: dict) -> dict:
         """Register a new user and return their tokens"""
 
-        user = await UserRepository.get_user(self.db, user_email=user_info["email"])
+        user = await self.user_repo.get_user(user_email=user_info["email"])
 
         if user:
             raise ValueError("User with this email address already exists!")
 
         password = user_info.pop("password")
         user_info["hashed_password"] = hash_password(password)
-        user = await UserRepository.create_user(self.db, user_info)
+        user = await self.user_repo.create_user(user_info)
 
         if not user:
             raise ValueError("User registration failed")
@@ -65,7 +69,7 @@ class AuthService:
 
     async def get_user(self, user_id: str) -> UserPrivateResponseSchema:
         """Get user information by user ID"""
-        user = await UserRepository.get_user_by_id(self.db, user_id=user_id)
+        user = await self.user_repo.get_user_by_id(user_id=user_id)
         
         if not user:
             raise ValueError("User not found")
@@ -77,7 +81,7 @@ class AuthService:
 
     async def update_user(self, user_id: UUID, updates: dict) -> UserPrivateResponseSchema:
         """Update user information"""
-        user = await UserRepository.update_user(self.db, user_id=user_id, updates=updates)
+        user = await self.user_repo.update_user(user_id=user_id, updates=updates)
 
         if not user:
             raise ValueError("User not found or update failed")
@@ -85,3 +89,19 @@ class AuthService:
         user_schema = UserPrivateResponseSchema.model_validate(user)
 
         return user_schema
+    
+
+class AdminUserService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.user_repo = UserRepository(db) 
+
+    async def user_list(self, page, page_size, search_str):
+        """Get user information by email"""
+        return await self.user_repo.get_list(
+            page=page, 
+            page_size=page_size, 
+            search_str=search_str
+        )
+        
+        

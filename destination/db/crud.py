@@ -51,6 +51,7 @@ class DestinationCRUD:
             # Convert string decimal fields to Decimal for main destination
             if destination_data.get("longitude"):
                 destination_data["longitude"] = Decimal(str(destination_data["longitude"]))
+            
             if destination_data.get("latitude"):
                 destination_data["latitude"] = Decimal(str(destination_data["latitude"]))
 
@@ -168,6 +169,7 @@ class DestinationCRUD:
                     destination_id=new_destination.id,
                     name=attr_data["name"],
                     description=attr_data.get("description"),
+                    image_url=attr_data.get("image_url", None),
                     tag=attr_data.get("tag"),
                     entry_fee=attr_data.get("entry_fee"),
                     opening_hours=attr_data.get("opening_hours"),
@@ -182,18 +184,13 @@ class DestinationCRUD:
 
             # Create destination images
             for img_data in images_data:
-                # Handle file upload logic here
-                # For now, assuming you'll have the image_url after upload
-                if img_data.get("file"):
-                    # TODO: Implement file upload and get URL
-                    # image_url = await upload_file(img_data["file"])
-                    
-                    destination_image = DestinationImage(
-                        destination_id=new_destination.id,
-                        image_url="",  # Set this after file upload
-                        alt_text=img_data.get("alt_text"),
-                    )
-                    self.db.add(destination_image)
+                destination_image = DestinationImage(
+                    destination_id=new_destination.id,
+                    image_url=img_data["image_url"],
+                    public_id=img_data["public_id"],
+                    alt_text=img_data.get("alt_text", None),
+                )
+                self.db.add(destination_image)
 
             # Commit all changes
             await self.db.commit()

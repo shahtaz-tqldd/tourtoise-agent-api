@@ -93,7 +93,17 @@ Make sure PostgreSQL credentials match your `.env` file.
 ## Database Migrations (Alembic)
 
 Alembic is already set up in the project.
+User migration with 3 steps:
 
+step1:
+
+```bash
+alembic revision --autogenerate -m "a descriptive message"
+```
+
+step 2: go check the vestions udner alembic folder
+
+step 3: run the following command to upgrade latest migrations
 To apply all migrations:
 
 ```bash

@@ -56,7 +56,12 @@ class Settings(BaseSettings):
     celery_result_backend: str | None = None
     celery_task_track_started: bool = True
     celery_task_time_limit: int = 300
-    
+
+    # Cloudinary
+    cloudinary_cloud_name: str = None
+    cloudinary_api_key: str = None
+    cloudinary_api_secret: str = None
+
     # Rate Limiting
     rate_limit_enabled: bool = True
     rate_limit_per_minute: int = 60

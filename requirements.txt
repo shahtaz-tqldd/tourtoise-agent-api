@@ -1,6 +1,7 @@
 alembic==1.16.1
 asyncpg==0.30.0
 celery[redis]==5.5.3
+cloudinary==1.44.1
 fastapi[standard]
 joblib==1.5.2
 google-adk
