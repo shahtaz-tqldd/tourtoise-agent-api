@@ -381,7 +381,8 @@ class Destination(Base):
     images = relationship(
         "DestinationImage",
         back_populates="destination",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        lazy="selectin"
     )
     accommodations = relationship(
         "Accommodation",
@@ -391,7 +392,8 @@ class Destination(Base):
     attractions = relationship(
         "Attraction",
         back_populates="destination",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        lazy="selectin"
     )
     restaurants = relationship(
         "Restaurant",

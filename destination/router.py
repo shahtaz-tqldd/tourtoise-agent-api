@@ -1,12 +1,14 @@
 from uuid import UUID
-from typing import Optional
+
+from typing import List, Optional
 from app.utils.print_log import print_log
-from fastapi import APIRouter, Depends, Body, Query
+from fastapi import APIRouter, HTTPException, UploadFile, Depends, File, Form, Body, Query
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.base.schema import (
-    BaseResponse, 
-    DataResponse, 
+    BaseResponse,
+    DataResponse,
     ListResponse
 )
 from destination.services import (
@@ -22,14 +24,13 @@ from destination.schema import (
     TransportTypeRequest,
     ActivityTypeRequest,
 )
-
+ 
 from app.db.session import get_async_session
 from auth.helpers.dependencies import get_current_user
 
 router = APIRouter()
 
 # destination routes
-
 async def get_destination_service(
     db: AsyncSession = Depends(get_async_session),
 ) -> DestinationService:
@@ -65,7 +66,6 @@ async def create_new_destination(
     service: DestinationService = Depends(get_destination_service),
     # user_id: UUID = Depends(get_current_user)
 ):
-
     destination_details = await service.create_destination(destination_payload.model_dump())
     
     return DataResponse(
@@ -75,9 +75,83 @@ async def create_new_destination(
     )
 
 
+@router.post("/upload-images", response_model=ListResponse)
+async def upload_images(
+    type: List[str] = Form(...),
+    file: List[UploadFile] = File(...),
+    destination_id: Optional[List[UUID]] = Form(None),
+    attraction_id: Optional[List[UUID]] = Form(None),
+    alt_text: Optional[List[str]] = Form(None),
+    service: DestinationService = Depends(get_destination_service),
+):
+    images = []
+
+    dest_idx = 0
+    attr_idx = 0
+
+    for i in range(len(file)):
+        img_type = type[i]
+
+        img = {
+            "type": img_type,
+            "file": file[i],
+            "alt_text": alt_text[i] if alt_text and i < len(alt_text) else None,
+            "destination_id": None,
+            "attraction_id": None,
+        }
+
+        if img_type == "destination":
+            if not destination_id or dest_idx >= len(destination_id):
+                raise HTTPException(
+                    status_code=400,
+                    detail="destination_id missing for destination image",
+                )
+            img["destination_id"] = destination_id[dest_idx]
+            dest_idx += 1
+
+        elif img_type == "attraction":
+            if not attraction_id or attr_idx >= len(attraction_id):
+                raise HTTPException(
+                    status_code=400,
+                    detail="attraction_id missing for attraction image",
+                )
+            img["attraction_id"] = attraction_id[attr_idx]
+            attr_idx += 1
+
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid image type: {img_type}",
+            )
+
+        images.append(img)
+
+    uploaded_images = await service.upload_images(images)
+
+    return ListResponse(
+        page=1,
+        total=len(uploaded_images),
+        page_size=len(uploaded_images),
+        data=uploaded_images,
+        message="Destination and Attraction images uploaded successfully!",
+    )
+
+
+
+@router.delete("/{destination_id}", response_model=BaseResponse)
+async def delete_destination(
+    destination_id: UUID,
+    service: DestinationService = Depends(get_destination_service),
+    # user_id: UUID = Depends(get_current_user)
+):
+    await service.delete_destination(destination_id)
+    return BaseResponse(
+        success=True,
+        message="Destination deleted successfully!",
+    )
+
 
 # accommodations routes
-
 async def get_accommodation_type_service(
     db: AsyncSession = Depends(get_async_session),
 ) -> AccommodationTypeService:
@@ -109,9 +183,7 @@ async def list_accommodation_types(
     )
 
 
-
 # transportation routes
-
 async def get_transport_type_service(
     db: AsyncSession = Depends(get_async_session),
 ) -> TransportTypeService:
@@ -144,7 +216,6 @@ async def list_transport_types(
 
    
 # activity routes
-
 async def get_activity_type_service(
     db: AsyncSession = Depends(get_async_session),
 ) -> ActivityTypeService:
@@ -174,5 +245,3 @@ async def list_activity_types(
         data=activity_type_list,
         message="Activity type list fetched successfully.",
     )
-
-   

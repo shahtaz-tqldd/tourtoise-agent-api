@@ -1,9 +1,10 @@
 from uuid import UUID
 from decimal import Decimal
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict, Any
 
+from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from destination.schema import (
   DestinationDetails, 
@@ -11,6 +12,7 @@ from destination.schema import (
   AccommodationTypeDetails,
   TransportTypeDetails,
   ActivityTypeDetails,
+  DestinationImageDetails
 )
 
 
@@ -25,8 +27,9 @@ from destination.db.models import (
     DestinationActivity,
     SignatureDish,
     Attraction,
-    DestinationImage,
     DietaryEnum,
+    DestinationImage,
+    AttractionImage,
 )
 
 
@@ -34,19 +37,18 @@ class DestinationCRUD:
     def __init__(self, db: AsyncSession):
       self.db = db
   
-    async def create_destination(self, destination_data: dict) -> DestinationDetails:
+    async def create(self, destination_data: dict) -> DestinationDetails:
         """
         Create a destination with all nested relationships
         """
         try:
             # Extract nested data
             accommodation_types_data = destination_data.pop("accommodation_types", [])
+            accommodations_data = destination_data.pop("accommodations", [])
             transport_options_data = destination_data.pop("transport_options", [])
             activities_data = destination_data.pop("activities", [])
             signature_dishes_data = destination_data.pop("signature_dishes", [])
-            accommodations_data = destination_data.pop("accommodations", [])
             attractions_data = destination_data.pop("attractions", [])
-            images_data = destination_data.pop("images", [])
 
             # Convert string decimal fields to Decimal for main destination
             if destination_data.get("longitude"):
@@ -58,10 +60,10 @@ class DestinationCRUD:
             # Create the main destination
             new_destination = Destination(**destination_data)
             self.db.add(new_destination)
-            await self.db.flush()  # Get the destination ID without committing
+            await self.db.flush()
 
-            # Create accommodation types (junction table entries) and store their IDs
-            accommodation_type_map = {}  # Maps AccommodationTypeRef ID to DestinationAccommodationType ID
+            # Create accommodation types
+            accommodation_type_map = {}
             for acc_type_data in accommodation_types_data:
                 accommodation_type = DestinationAccommodationType(
                     destination_id=new_destination.id,
@@ -71,12 +73,11 @@ class DestinationCRUD:
                     description=acc_type_data.get("description"),
                 )
                 self.db.add(accommodation_type)
-                await self.db.flush()  # Get the junction table ID
+                await self.db.flush()
                 
-                # Store mapping: AccommodationTypeRef ID -> DestinationAccommodationType ID
                 accommodation_type_map[acc_type_data["accommodation_type_id"]] = accommodation_type.id
 
-            # Create transport options (junction table entries)
+            # Create transport options
             for transport_data in transport_options_data:
                 transport_option = DestinationTransportOption(
                     destination_id=new_destination.id,
@@ -87,7 +88,7 @@ class DestinationCRUD:
                 )
                 self.db.add(transport_option)
 
-            # Create activities (junction table entries)
+            # Create activities
             for activity_data in activities_data:
                 activity = DestinationActivity(
                     destination_id=new_destination.id,
@@ -137,16 +138,14 @@ class DestinationCRUD:
                 )
                 self.db.add(signature_dish)
 
-            # Create accommodations (specific properties)
-            # FIXED: Use the junction table ID from the map
+            # Create accommodations
             for acc_data in accommodations_data:
-                # Get the junction table ID from our map
                 type_ref_id = acc_data.get("accommodation_type_id")
                 junction_table_id = accommodation_type_map.get(type_ref_id) if type_ref_id else None
                 
                 accommodation = Accommodation(
                     destination_id=new_destination.id,
-                    accommodation_type_id=junction_table_id,  # Use junction table ID
+                    accommodation_type_id=junction_table_id,
                     name=acc_data["name"],
                     price_range=acc_data["price_range"],
                     rating=Decimal(str(acc_data["rating"])) if acc_data.get("rating") else None,
@@ -162,14 +161,10 @@ class DestinationCRUD:
 
             # Create attractions
             for attr_data in attractions_data:
-                # Handle image_file if needed (you'll need to implement file upload logic)
-                # For now, we'll skip the image_file field
-                
                 attraction = Attraction(
                     destination_id=new_destination.id,
                     name=attr_data["name"],
                     description=attr_data.get("description"),
-                    image_url=attr_data.get("image_url", None),
                     tag=attr_data.get("tag"),
                     entry_fee=attr_data.get("entry_fee"),
                     opening_hours=attr_data.get("opening_hours"),
@@ -182,41 +177,111 @@ class DestinationCRUD:
                 )
                 self.db.add(attraction)
 
-            # Create destination images
-            for img_data in images_data:
-                destination_image = DestinationImage(
-                    destination_id=new_destination.id,
-                    image_url=img_data["image_url"],
-                    public_id=img_data["public_id"],
-                    alt_text=img_data.get("alt_text", None),
-                )
-                self.db.add(destination_image)
-
             # Commit all changes
             await self.db.commit()
-            await self.db.refresh(new_destination)
             
-            return DestinationDetails.model_validate(new_destination)
+            stmt = (
+                select(Destination)
+                .options(selectinload(Destination.attractions))
+                .where(Destination.id == new_destination.id)
+            )
+
+            result = await self.db.execute(stmt)
+            destination = result.scalar_one()
+
+            return DestinationDetails.model_validate(destination)
 
         except Exception as e:
             await self.db.rollback()
             raise Exception(f"Error creating destination: {str(e)}")
 
+    async def add_destination_images(self, image_data: List[Dict[str, Any]]) -> list[DestinationImageDetails]:
+        if not image_data:
+            return []
 
+        created_images = []
 
+        for img in image_data:
+            dest_img = DestinationImage(
+                destination_id=img["destination_id"],
+                image_url=img["image_url"],
+                public_id=img["public_id"],
+                alt_text=img.get("alt_text"),
+            )
+            self.db.add(dest_img)
+            created_images.append(dest_img)
+
+        await self.db.commit()
+
+        for img in created_images:
+            await self.db.refresh(img)
+
+        return created_images
+
+    async def add_attraction_images(self, image_data: List[Dict[str, Any]]) -> list[DestinationImageDetails]:
+        if not image_data:
+            return []
+
+        created_images = []
+
+        for img in image_data:
+            attraction_img = AttractionImage(
+                attraction_id=img["attraction_id"],
+                image_url=img["image_url"],
+                public_id=img["public_id"],
+                alt_text=img.get("alt_text"),
+            )
+            self.db.add(attraction_img)
+            created_images.append(attraction_img)
+
+        await self.db.commit()
+
+        for img in created_images:
+            await self.db.refresh(img)
+
+        return created_images
+    
     async def get_list(
-        self, 
-        page: int = 1, 
-        page_size: int = 10, 
-        search_query: str = None
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        search_query: str | None = None,
     ) -> Tuple[List[DestinationBasicDetails], int]:
-        
-        stmt = select(Destination)
-        result = await self.db.execute(stmt)
-        rows = result.scalars().all()
 
-        return ([DestinationBasicDetails.model_validate(row) for row in rows], len(rows))
-        
+        stmt = (
+            select(Destination)
+            .options(selectinload(Destination.images))
+        )
+
+        if search_query:
+            stmt = stmt.where(Destination.name.ilike(f"%{search_query}%"))
+
+        # Total count
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = await self.db.scalar(count_stmt)
+
+        # Pagination
+        stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+
+        result = await self.db.execute(stmt)
+        destinations = result.scalars().all()
+
+        return (
+            [DestinationBasicDetails.model_validate(d) for d in destinations],
+            total
+        )
+
+
+    async def delete(self, destination_id) -> None:
+        stmt = select(Destination).where(Destination.id == destination_id)
+        result = await self.db.execute(stmt)
+        destination = result.scalar_one_or_none()
+
+        if not destination:
+            raise ValueError("Destination not found")
+
+        await self.db.delete(destination)
+        await self.db.commit()
 
 class AccommodationCRUD:
     def __init__(self, db: AsyncSession):

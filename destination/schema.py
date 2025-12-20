@@ -1,9 +1,9 @@
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 from fastapi import UploadFile
 from pydantic import BaseModel, ConfigDict
 from typing import List, Optional, Any
-from uuid import UUID
 
 
 class AccommodationTypeRequest(BaseModel):
@@ -12,7 +12,7 @@ class AccommodationTypeRequest(BaseModel):
 
 class AccommodationTypeDetails(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
     name: str
     description: Optional[str]
@@ -29,6 +29,7 @@ class TransportTypeDetails(BaseModel):
     name: str
     description: Optional[str]
 
+
 class ActivityTypeRequest(BaseModel):
     name: str
     description: Optional[str] = None
@@ -38,13 +39,13 @@ class ActivityTypeDetails(BaseModel):
     id: UUID
     name: str
     description: Optional[str]
-    
-class AccommodationTypeRequest(BaseModel):
+
+
+class DestinationAccommodationTypeRequest(BaseModel):
     accommodation_type_id: str
     price_range: str
     availability: str
     description: Optional[str]
-
 
 class TransportOptionRequest(BaseModel):
     transport_type_id: str
@@ -94,7 +95,6 @@ class ImageRequest(BaseModel):
 class AttractionRequest(BaseModel):
     name: str
     description: Optional[str]
-    image_file: ImageRequest
     tag: Optional[str]
     entry_fee: Optional[str]
     opening_hours: Optional[str]
@@ -136,14 +136,33 @@ class DestinationCreateRequest(BaseModel):
     customs: Optional[str]
     how_to_reach: Optional[str]
 
-    accommodation_types: List[AccommodationTypeRequest]
+    accommodation_types: List[DestinationAccommodationTypeRequest]
+    accommodations: List[AccommodationRequest]
     transport_options: List[TransportOptionRequest]
     activities: List[ActivityRequest]
     signature_dishes: List[SignatureDishRequest]
 
-    accommodations: List[AccommodationRequest]
     attractions: List[AttractionRequest]
-    images: List[ImageRequest]
+    # images: List[ImageRequest]
+
+
+class AttractionDetails(BaseModel):
+    """Attraction response"""
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID
+    name: str
+    description: Optional[str] = ""
+    tag: Optional[str] = ""
+    entry_fee: Optional[str] = ""
+    opening_hours: Optional[str] = ""
+    is_recommended: Optional[bool] = False
+    region: Optional[str] = ""
+    best_time_to_visit: Optional[str] = ""
+    available_transports: Optional[List] = []
+    longitude: Optional[Decimal] = 0.0
+    latitude: Optional[Decimal] = 0.0
+
 
 
 class DestinationDetails(BaseModel):
@@ -178,6 +197,8 @@ class DestinationDetails(BaseModel):
     safety_tips: Optional[str]
     customs: Optional[str]
     how_to_reach: Optional[str]
+
+    attractions: List[AttractionDetails] = []
     
     is_active: bool
     is_featured: bool
@@ -236,15 +257,23 @@ class DestinationFullDetails(BaseModel):
     attractions_count: int = 0
     images_count: int = 0
 
-    
+
+class DestinationImageDetails(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    image_url: str
+    alt_text: Optional[str] = None
+
 
 class DestinationBasicDetails(BaseModel):
     """Basic destination details for response"""
     model_config = ConfigDict(from_attributes=True)
     
+    id: UUID
     name: str
     description: Optional[str]
     tags: List[str]
+    images: List[DestinationImageDetails] = []
 
     best_time: Optional[str]
     cost_level: Optional[str]
