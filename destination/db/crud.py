@@ -15,9 +15,9 @@ from destination.schema import (
   DestinationImageDetails
 )
 from destination.schemas import (
-  DestinationDetails, 
   DestinationBasicDetails,
-  DestinationFullDetails
+  DestinationFullDetails,
+  DestinationDetailsResponse
 )
 
 def slugify(text: str) -> str:
@@ -64,7 +64,7 @@ class DestinationCRUD:
             slug = f"{base_slug}-{counter}"
             counter += 1
   
-    async def create(self, destination_data: dict) -> DestinationDetails:
+    async def create(self, destination_data: dict) -> DestinationDetailsResponse:
         """
         Create a destination with all nested relationships
         """
@@ -220,7 +220,7 @@ class DestinationCRUD:
             result = await self.db.execute(stmt)
             destination = result.scalar_one()
 
-            return DestinationDetails.model_validate(destination)
+            return DestinationDetailsResponse.model_validate(destination)
         
         except Exception as e:
             await self.db.rollback()

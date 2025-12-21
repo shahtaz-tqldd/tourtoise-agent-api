@@ -1,1 +1,2 @@
 from .details import DestinationBasicDetails, DestinationDetails, DestinationFullDetails
+from .response import DestinationDetailsResponse

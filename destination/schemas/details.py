@@ -148,6 +148,7 @@ class DestinationBasicDetails(BaseModel):
     """Basic destination details for response"""
     model_config = ConfigDict(from_attributes=True)
     
+    id: UUID
     slug: str
     name: str
     description: Optional[str]
