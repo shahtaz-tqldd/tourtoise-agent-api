@@ -1,0 +1,1 @@
+from .details import DestinationBasicDetails, DestinationDetails, DestinationFullDetails

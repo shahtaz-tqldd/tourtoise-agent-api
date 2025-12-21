@@ -10,13 +10,6 @@ class AccommodationTypeRequest(BaseModel):
     name: str
     description: Optional[str] = None
 
-class AccommodationTypeDetails(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    name: str
-    description: Optional[str]
-
 
 class TransportTypeRequest(BaseModel):
     name: str
@@ -86,6 +79,19 @@ class AccommodationRequest(BaseModel):
     email: Optional[str]
     website: Optional[str]
 
+class AccommodationDetails(BaseModel):
+    id: UUID
+    name: str
+    price_range: str
+    rating: Optional[str]
+    distance: Optional[str]
+    region: Optional[str]
+    longitude: Optional[str]
+    latitude: Optional[str]
+    phone: Optional[str]
+    email: Optional[str]
+    website: Optional[str]
+
 
 class ImageRequest(BaseModel):
     file: UploadFile
@@ -141,9 +147,7 @@ class DestinationCreateRequest(BaseModel):
     transport_options: List[TransportOptionRequest]
     activities: List[ActivityRequest]
     signature_dishes: List[SignatureDishRequest]
-
     attractions: List[AttractionRequest]
-    # images: List[ImageRequest]
 
 
 class AttractionDetails(BaseModel):
@@ -208,55 +212,6 @@ class DestinationDetails(BaseModel):
     updated_at: datetime
 
 
-class DestinationFullDetails(BaseModel):
-    """Complete destination details with all relationships"""
-    model_config = ConfigDict(from_attributes=True)
-    
-    id: UUID
-    name: str
-    description: Optional[str]
-    tags: List[str] = []
-    
-    best_time: Optional[str]
-    cost_level: Optional[str]
-    avg_duration: Optional[str]
-    
-    suitable_for: List[str] = []
-    popular_for: List[str] = []
-    
-    country: str
-    region: str
-    longitude: Optional[Decimal]
-    latitude: Optional[Decimal]
-    timezone: Optional[str]
-    
-    weather: Optional[str]
-    peak_season: Optional[str]
-    festivals: Optional[str]
-    
-    languages: List[str] = []
-    payment_methods: List[str] = []
-    
-    safety_tips: Optional[str]
-    customs: Optional[str]
-    how_to_reach: Optional[str]
-    
-    is_active: bool
-    is_featured: bool
-    view_count: int
-    
-    created_at: datetime
-    updated_at: datetime
-    
-    # Related entities counts or summaries
-    accommodation_types_count: int = 0
-    transport_options_count: int = 0
-    activities_count: int = 0
-    signature_dishes_count: int = 0
-    accommodations_count: int = 0
-    attractions_count: int = 0
-    images_count: int = 0
-
 
 class DestinationImageDetails(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -269,7 +224,7 @@ class DestinationBasicDetails(BaseModel):
     """Basic destination details for response"""
     model_config = ConfigDict(from_attributes=True)
     
-    id: UUID
+    slug: str
     name: str
     description: Optional[str]
     tags: List[str]
@@ -300,6 +255,14 @@ class TransportOptionResponse(BaseModel):
     
     id: UUID
     transport_ref_id: UUID
+    price_range: str
+    availability: Optional[str]
+    description: Optional[str]
+
+class TransportOptionDetails(BaseModel):
+    """Transport option response"""
+    model_config = ConfigDict(from_attributes=True)
+
     price_range: str
     availability: Optional[str]
     description: Optional[str]
@@ -345,6 +308,13 @@ class AccommodationResponse(BaseModel):
     email: Optional[str]
     website: Optional[str]
 
+class AccommodationTypeDetails(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    description: Optional[str]
+
 
 class AttractionResponse(BaseModel):
     """Attraction response"""
@@ -359,3 +329,51 @@ class AttractionResponse(BaseModel):
     is_recommended: bool
     region: str
 
+class DestinationFullDetails(BaseModel):
+    """Complete destination details with all relationships"""
+    model_config = ConfigDict(from_attributes=True)
+    
+    slug: str
+    name: str
+    description: Optional[str]
+    tags: List[str] = []
+    
+    best_time: Optional[str]
+    cost_level: Optional[str]
+    avg_duration: Optional[str]
+    
+    suitable_for: List[str] = []
+    popular_for: List[str] = []
+    
+    country: str
+    region: str
+    longitude: Optional[Decimal]
+    latitude: Optional[Decimal]
+    timezone: Optional[str]
+    
+    weather: Optional[str]
+    peak_season: Optional[str]
+    festivals: Optional[str]
+    
+    languages: List[str] = []
+    payment_methods: List[str] = []
+    
+    safety_tips: Optional[str]
+    customs: Optional[str]
+    how_to_reach: Optional[str]
+    
+    is_active: bool
+    is_featured: bool
+    view_count: int
+    
+    created_at: datetime
+    updated_at: datetime
+    
+    # Related entities counts or summaries
+    images: List[DestinationImageDetails] = []
+    attractions: List[AttractionDetails] = []
+    transport_options: List[TransportOptionDetails] = []
+    signature_dishes: List[SignatureDishResponse] = []
+    accommodation_types: List[AccommodationTypeDetails] = []
+    accommodations: List[AccommodationDetails] = []
+    activities: List[ActivityTypeDetails] = []

@@ -175,3 +175,6 @@ class DestinationService:
 
 		return destination_list, total_count
 	
+
+	async def destination_details(self, slug: str):
+		return await self.destination_crud.get_by_slug(slug)

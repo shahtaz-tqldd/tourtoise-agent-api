@@ -314,6 +314,7 @@ class Destination(Base):
     __tablename__ = "destinations"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    slug = Column(String(255), unique=True, index=True, nullable=False)
     
     # Basic Info
     name = Column(String(255), nullable=False, index=True)
@@ -359,7 +360,7 @@ class Destination(Base):
     accommodation_types = relationship(
         "DestinationAccommodationType",
         back_populates="destination",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
     transportation_options = relationship(
         "DestinationTransportOption",
@@ -382,12 +383,13 @@ class Destination(Base):
         "DestinationImage",
         back_populates="destination",
         cascade="all, delete-orphan",
-        lazy="selectin"
+        lazy="selectin",
     )
     accommodations = relationship(
         "Accommodation",
         back_populates="destination",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        lazy="selectin"
     )
     attractions = relationship(
         "Attraction",

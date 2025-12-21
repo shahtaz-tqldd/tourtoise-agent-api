@@ -1,5 +1,7 @@
+import re
 from uuid import UUID
 from decimal import Decimal
+from app.utils.print_log import print_log
 from typing import List, Tuple, Optional, Dict, Any
 
 from sqlalchemy import select, func
@@ -7,13 +9,22 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from destination.schema import (
-  DestinationDetails, 
-  DestinationBasicDetails,
   AccommodationTypeDetails,
   TransportTypeDetails,
   ActivityTypeDetails,
   DestinationImageDetails
 )
+from destination.schemas import (
+  DestinationDetails, 
+  DestinationBasicDetails,
+  DestinationFullDetails
+)
+
+def slugify(text: str) -> str:
+    text = text.lower()
+    text = re.sub(r"[^\w\s-]", "", text)
+    text = re.sub(r"[\s_-]+", "-", text)
+    return text.strip("-")
 
 
 from destination.db.models import (
@@ -36,6 +47,22 @@ from destination.db.models import (
 class DestinationCRUD:
     def __init__(self, db: AsyncSession):
       self.db = db
+
+    async def _generate_unique_slug(self, model, name: str) -> str:
+        base_slug = slugify(name)
+        slug = base_slug
+        counter = 1
+
+        while True:
+            stmt = select(model.slug).where(model.slug == slug)
+            result = await self.db.execute(stmt)
+            exists = result.scalar_one_or_none()
+
+            if not exists:
+                return slug
+
+            slug = f"{base_slug}-{counter}"
+            counter += 1
   
     async def create(self, destination_data: dict) -> DestinationDetails:
         """
@@ -58,6 +85,10 @@ class DestinationCRUD:
                 destination_data["latitude"] = Decimal(str(destination_data["latitude"]))
 
             # Create the main destination
+            destination_data["slug"] = await self._generate_unique_slug(
+                model=Destination,
+                name=destination_data["name"]
+            )
             new_destination = Destination(**destination_data)
             self.db.add(new_destination)
             await self.db.flush()
@@ -190,7 +221,7 @@ class DestinationCRUD:
             destination = result.scalar_one()
 
             return DestinationDetails.model_validate(destination)
-
+        
         except Exception as e:
             await self.db.rollback()
             raise Exception(f"Error creating destination: {str(e)}")
@@ -270,6 +301,40 @@ class DestinationCRUD:
             [DestinationBasicDetails.model_validate(d) for d in destinations],
             total
         )
+
+    async def get_by_slug(self, slug: str) -> DestinationFullDetails:
+        stmt = (
+            select(Destination)
+            .where(Destination.slug == slug)
+            .options(selectinload(Destination.images))
+            .options(
+                selectinload(Destination.attractions)
+                .selectinload(Attraction.images)  # Load attraction images
+            )
+            .options(selectinload(Destination.signature_dishes))
+            .options(
+                selectinload(Destination.transportation_options)
+                .selectinload(DestinationTransportOption.transport_ref)  # Load transport name
+            )
+            .options(
+                selectinload(Destination.activities)
+                .selectinload(DestinationActivity.activity_ref)  # Load activity name
+            )
+            .options(
+                selectinload(Destination.accommodations)
+                .selectinload(Accommodation.accommodation_type)
+                .selectinload(DestinationAccommodationType.type_ref)  # Load accommodation type name
+            )
+            .options(
+                selectinload(Destination.accommodation_types)
+                .selectinload(DestinationAccommodationType.type_ref)  # Load accommodation type name
+            )
+        )
+
+        result = await self.db.execute(stmt)
+        destination = result.scalar_one()
+
+        return DestinationFullDetails.model_validate(destination)
 
 
     async def delete(self, destination_id) -> None:

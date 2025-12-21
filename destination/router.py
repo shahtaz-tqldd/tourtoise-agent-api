@@ -59,6 +59,18 @@ async def list_destinations(
         message="Destination list fetched successfully.",
     )
 
+@router.get("", response_model=DataResponse)
+async def get_destination_details(
+    destination_slug: str = Query(),
+    service: DestinationService = Depends(get_destination_service),
+    # user_id: UUID = Depends(get_current_user)
+):
+    destination_details = await service.destination_details(destination_slug)
+    return DataResponse(    
+        data=destination_details,
+        message="Destination details fetched successfully!",
+    )
+
 
 @router.post("/create", response_model=DataResponse)
 async def create_new_destination(
